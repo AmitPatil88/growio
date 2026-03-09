@@ -1,5 +1,6 @@
-# CropCareAI 
-#### An AI-driven platform offering crop recommendations, fertilizer suggestions, and disease detection for optimal farming.
+# Growio – Smart Farming Powered by AI 🌱
+
+An AI-driven platform offering crop recommendations, fertilizer suggestions, and plant disease detection to help farmers maximize productivity using data-driven insights.
 
 ## MOTIVATION 
 - Farming is one of the major sectors that influences a country’s economic growth. 
@@ -38,8 +39,12 @@
 <code><img height="30" src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Scikit_learn_logo_small.svg/1280px-Scikit_learn_logo_small.svg.png"></code>
 <code><img height="30" src="https://raw.githubusercontent.com/pytorch/pytorch/39fa0b5d0a3b966a50dcd90b26e6c36942705d6d/docs/source/_static/img/pytorch-logo-dark.svg"></code>
 
-## DEPLOYMENT 🚀
-- Heruko was used for deployment.
+## DEPLOYMENT 🚀## Deployment 🚀
+The application can be deployed using cloud platforms such as:
+
+- Render
+- Railway
+- AWS
 
 
 ## How to use 💻
@@ -118,4 +123,4 @@ This was my first big project so there are lot of things to improve upon
 
 
 ## License 📝
-This project is licensed under [GNU (GENERAL PUBLIC LICENSE)](https://github.com/AnMol12499/CropcareAI/blob/main/LICENSE)
+This project is licensed under [GNU General Public License v3](https://github.com/AmitPatil88/growio/blob/main/LICENSE)
