@@ -26,10 +26,16 @@
   
 
 
-  <form class="form-signin" method=post enctype=multipart/form-data>
+  <form class="form-signin"
+      action="/disease-predict"
+      method="POST"
+      enctype="multipart/form-data">
+
 
     <h2 class="h4 mb-3 font-weight-normal"><b>Please Upload The Image</b></h2>
-    <input type="file" name="file" class="form-control-file" id="inputfile" onchange="preview_image(event)" style="font-weight: bold;">
+    <input type="file" name="file" class="form-control-file" id="inputfile"
+       onchange="preview_image(event)" style="font-weight: bold;" required>
+
     <br>
     <br>
     <img id="output-image" class="rounded mx-auto d-block" />

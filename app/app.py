@@ -1,6 +1,7 @@
 # Importing essential libraries and modules
-
-from flask import Flask, render_template, request, Markup
+import os 
+from flask import Flask, render_template, request
+from markupsafe import Markup
 import numpy as np
 import pandas as pd
 from utils.disease import disease_dic
@@ -13,6 +14,16 @@ import torch
 from torchvision import transforms
 from PIL import Image
 from utils.model import ResNet9
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+FERTILIZER_PATH = os.path.join(BASE_DIR, "Data", "fertilizer.csv")
+CROP_PATH = os.path.join(BASE_DIR, "Data", "Crop_recommendation.csv")
+
+CROP_MODEL_PATH = os.path.join(BASE_DIR, "models", "RandomForest.pkl")
+DISEASE_MODEL_PATH = os.path.join(BASE_DIR, "models", "plant_disease_model.pth")
+
+
+
 # ==============================================================================================
 
 # -------------------------LOADING THE TRAINED MODELS -----------------------------------------------
@@ -58,31 +69,51 @@ disease_classes = ['Apple___Apple_scab',
                    'Tomato___Tomato_mosaic_virus',
                    'Tomato___healthy']
 
-disease_model_path = 'models/plant_disease_model.pth'
 disease_model = ResNet9(3, len(disease_classes))
-disease_model.load_state_dict(torch.load(
-    disease_model_path, map_location=torch.device('cpu')))
+disease_model.load_state_dict(
+    torch.load(DISEASE_MODEL_PATH, map_location=torch.device('cpu')))
 disease_model.eval()
 
 
-# Loading crop recommendation model
+# ===== ADD THIS FUNCTION HERE =====
+def predict_image(img, model=disease_model):
 
-crop_recommendation_model_path = 'models/RandomForest.pkl'
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.ToTensor(),
+    ])
+
+    image = Image.open(io.BytesIO(img)).convert("RGB")
+
+    img_t = transform(image)
+    img_u = torch.unsqueeze(img_t, 0)
+
+    with torch.no_grad():
+        yb = model(img_u)
+        _, preds = torch.max(yb, dim=1)
+
+    prediction = disease_classes[preds[0].item()]
+
+    return prediction
+
+
+
+
+
+# Loading crop recommendation model
+print("Crop Model Path:", CROP_MODEL_PATH)
+
 crop_recommendation_model = pickle.load(
-    open(crop_recommendation_model_path, 'rb'))
+    open(CROP_MODEL_PATH, 'rb'))
+
+
+
 
 
 # =========================================================================================
 
 # Custom functions for calculations
-
-
 def weather_fetch(city_name):
-    """
-    Fetch and returns the temperature and humidity of a city
-    :params: city_name
-    :return: temperature, humidity
-    """
     api_key = config.weather_api_key
     base_url = "http://api.openweathermap.org/data/2.5/weather?"
 
@@ -90,37 +121,20 @@ def weather_fetch(city_name):
     response = requests.get(complete_url)
     x = response.json()
 
-    if x["cod"] != "404":
-        y = x["main"]
+    # 👇 ADD THIS LINE HERE
+    print("API RESPONSE:", x)
 
-        temperature = round((y["temp"] - 273.15), 2)
-        humidity = y["humidity"]
-        return temperature, humidity
-    else:
+    try:
+        if x.get("cod") != "404":
+            y = x["main"]
+
+            temperature = round((y["temp"] - 273.15), 2)
+            humidity = y["humidity"]
+            return temperature, humidity
+        else:
+            return None
+    except:
         return None
-
-
-def predict_image(img, model=disease_model):
-    """
-    Transforms image to tensor and predicts disease label
-    :params: image
-    :return: prediction (string)
-    """
-    transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.ToTensor(),
-    ])
-    image = Image.open(io.BytesIO(img))
-    img_t = transform(image)
-    img_u = torch.unsqueeze(img_t, 0)
-
-    # Get predictions from model
-    yb = model(img_u)
-    # Pick index with highest probability
-    _, preds = torch.max(yb, dim=1)
-    prediction = disease_classes[preds[0].item()]
-    # Retrieve the class label
-    return prediction
 
 # ===============================================================================================
 # ------------------------------------ FLASK APP -------------------------------------------------
@@ -133,7 +147,7 @@ app = Flask(__name__)
 
 @ app.route('/')
 def home():
-    title = 'Harvestify - Home'
+    title = 'GROWIO - Home'
     return render_template('index.html', title=title)
 
 # render crop recommendation form page
@@ -141,7 +155,7 @@ def home():
 
 @ app.route('/crop-recommend')
 def crop_recommend():
-    title = 'Harvestify - Crop Recommendation'
+    title = 'GROWIO - Crop Recommendation'
     return render_template('crop.html', title=title)
 
 # render fertilizer recommendation form page
@@ -149,7 +163,7 @@ def crop_recommend():
 
 @ app.route('/fertilizer')
 def fertilizer_recommendation():
-    title = 'Harvestify - Fertilizer Suggestion'
+    title = 'GROWIO - Fertilizer Suggestion'
 
     return render_template('fertilizer.html', title=title)
 
@@ -167,7 +181,7 @@ def fertilizer_recommendation():
 
 @ app.route('/crop-predict', methods=['POST'])
 def crop_prediction():
-    title = 'Harvestify - Crop Recommendation'
+    title = 'GROWIO - Crop Recommendation'
 
     if request.method == 'POST':
         N = int(request.form['nitrogen'])
@@ -196,7 +210,7 @@ def crop_prediction():
 
 @ app.route('/fertilizer-predict', methods=['POST'])
 def fert_recommend():
-    title = 'Harvestify - Fertilizer Suggestion'
+    title = 'GROWIO - Fertilizer Suggestion'
 
     crop_name = str(request.form['cropname'])
     N = int(request.form['nitrogen'])
@@ -204,7 +218,8 @@ def fert_recommend():
     K = int(request.form['pottasium'])
     # ph = float(request.form['ph'])
 
-    df = pd.read_csv('Data/fertilizer.csv')
+    df = pd.read_csv(FERTILIZER_PATH)
+
 
     nr = df[df['Crop'] == crop_name]['N'].iloc[0]
     pr = df[df['Crop'] == crop_name]['P'].iloc[0]
@@ -240,26 +255,44 @@ def fert_recommend():
 
 @app.route('/disease-predict', methods=['GET', 'POST'])
 def disease_prediction():
-    title = 'Harvestify - Disease Detection'
+    title = 'GROWIO - Disease Detection'
 
     if request.method == 'POST':
         if 'file' not in request.files:
-            return redirect(request.url)
-        file = request.files.get('file')
-        if not file:
+            print("No file part")
             return render_template('disease.html', title=title)
+
+        file = request.files.get('file')
+
+        if file.filename == '':
+            print("No selected file")
+            return render_template('disease.html', title=title)
+
         try:
             img = file.read()
 
+            print("Image received")   # DEBUG
+
             prediction = predict_image(img)
 
+            print("Prediction:", prediction)   # DEBUG
+
             prediction = Markup(str(disease_dic[prediction]))
-            return render_template('disease-result.html', prediction=prediction, title=title)
-        except:
-            pass
+
+            return render_template(
+                'disease-result.html',
+                prediction=prediction,
+                title=title
+            )
+
+        except Exception as e:
+            print("ERROR:", e)   # SHOW REAL ERROR
+            return render_template('disease.html', title=title)
+
     return render_template('disease.html', title=title)
 
 
 # ===============================================================================================
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
+
